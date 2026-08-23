@@ -1,0 +1,22 @@
+# Gradle
+.gradle/
+build/
+
+# Android Studio / IDE
+.idea/
+*.iml
+local.properties
+.cxx/
+
+# Native build output
+app/.cxx/
+app/build/
+
+# Bundled GGUF model — NEVER commit (DECISIONS.md D4)
+app/src/main/assets/models/
+
+# Vendored llama.cpp — ignored for now, NOT a submodule (DECISIONS.md D9)
+app/src/main/cpp/llama.cpp/
+
+# Logs / temp
+*.log
