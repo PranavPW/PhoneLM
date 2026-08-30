@@ -1,14 +1,15 @@
 # PhoneLM STATUS
-- Updated: 2026-08-23 | Milestone: **M1 Build-Level PUBLISHED** | Last completed step: Docs — README + ARCHITECTURE + STATUS published
-- Health: GREEN — M1 build-level complete and now published to GitHub; awaiting user emulator verification to unlock M2.
-- Build: `.\gradlew.bat assembleDebug` → SUCCESS; `testDebugUnitTest` → SUCCESS (19/19); `assembleDebugAndroidTest` → SUCCESS. APK 507.0 MB.
-- Tests: JVM 19/19 green (Chunker 7, PromptBuilder 5, ModelLocator 7). Instrumented JniSmokeTest compiled, USER to run via `.\gradlew.bat connectedDebugAndroidTest`.
+- Updated: 2026-08-24 | Milestone: **M1 Build-Level PUBLISHED** | Last completed step: Clean-room validation round (CR1-5 + 9 regression locks)
+- Health: GREEN — M1 build-level complete; clean-room re-run PASS (CR1-5), 39 JVM tests green (19 original + 20 locks), D4 gate holds (50.6 MB absent / 507 MB present), 9 regression locks PASS; awaiting user emulator verification to unlock M2.
+- Build: `.\gradlew.bat clean` → SUCCESS; `testDebugUnitTest` → SUCCESS (39/39); `assembleDebugAndroidTest` → SUCCESS; `assembleDebug` GGUF-present 507 MB / GGUF-absent 50.6 MB.
+- Tests: JVM 39/39 green (Chunker 7+6, PromptBuilder 5+4, ModelLocator 7+4, +5 single-test locks). Instrumented JniSmokeTest compiled, USER to run via `.\gradlew.bat connectedDebugAndroidTest`. Details: docs/TEST_REPORT.md.
 - Blockers: none open (docs/BLOCKERS.md). M2 remains locked until MANUAL_VERIFY §B real-generation gate passes on emulator.
-- Evidence: docs/TEST_LOG.md §"Phase 3 Step 0", §"M1 Step 1"–"M1 Step 5", §"M1 Final Gates", §"DOCS".
+- Evidence: docs/TEST_REPORT.md (CR1-5, TC-01..09) + docs/TEST_LOG.md §"Phase 3 Step 0"–"M1 Final Gates"–"DOCS".
 - Next action: User runs MANUAL_VERIFY §B items 1–7 on emulator. No code work until that gate passes.
 - Artifacts index:
   - README.md — hero, status banner, ecosystem, Mermaid diagram, build/test/roadmap (2026-08-23)
   - docs/ARCHITECTURE.md — NativeBridge.cpp deep dive, D4/D9 mechanisms, RAG pipeline (2026-08-23)
+  - docs/TEST_REPORT.md — clean-room validation round (CR1-5 + 9 locks, 2026-08-24)
   - docs/CODEBASE_MAP.md — audited file tree, JNI contract, fake/broken inventory, build diagnosis (2026-08-23)
   - docs/RESEARCH_NOTES.md — sourced findings: decode loop, pooling, PR #9639, sqlite-vec, HF repo status (2026-08-23)
   - docs/DECISIONS.md — D1–D10 with alternatives (+D8 test-deps amendment in TEST_LOG) (2026-08-23)
@@ -18,6 +19,4 @@
   - docs/PROGRESS.md — per-step reflections + Step 5 Decode Plan, append-only (2026-08-23)
   - docs/TEST_LOG.md — verbatim command evidence per step (2026-08-23)
   - scripts/fetch_model.ps1 — GGUF fetcher (download or local copy), gitignored destination (2026-08-23)
-  - docs/STATUS.md — this dashboard; must never contradict PROGRESS.md (2026-08-23)
-  - docs/STATUS.md — this dashboard; must never contradict PROGRESS.md (2026-08-23)
-  - docs/STATUS.md — this dashboard; must never contradict PROGRESS.md (2026-08-23)
+  - docs/STATUS.md — this dashboard; must never contradict PROGRESS.md (2026-08-24)
