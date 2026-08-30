@@ -625,12 +625,15 @@ Select-String -Pattern "fetch_model\.ps1" → lines 102, 105
 
 ### T3 — git commit + push
 ```
-git add . ; git commit -m "docs: add portfolio-grade README and architecture guide"
-[main <hash>] docs: add portfolio-grade README and architecture guide
- 3 files changed, <lines> insertions(+)
+git add README.md docs/ARCHITECTURE.md docs/STATUS.md docs/TEST_LOG.md
+git commit -m "docs: add portfolio-grade README and architecture guide"
+[main cf39032] docs: add portfolio-grade README and architecture guide
+ 4 files changed, 396 insertions(+), 5 deletions(-)
  create mode 100644 README.md
-  ...
+ create mode 100644 docs/ARCHITECTURE.md
 
 git push
-<paste below>
+To https://github.com/PranavPW/PhoneLM.git
+   5bf68e0..cf39032  main -> main
 ```
+T1 PASS · T2 PASS · T3 PASS → **DOCS published. M1 Build-Level PUBLISHED.**
