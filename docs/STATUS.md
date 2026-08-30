@@ -1,12 +1,14 @@
 # PhoneLM STATUS
-- Updated: 2026-08-23 | Milestone: **M1 COMPLETE (build level)** | Last completed step: M1 Final Gates
-- Health: GREEN — assembleDebug green with/without GGUF; real decode loop compiled; 19 JVM tests green; instrumented smoke template compiles; awaiting user emulator verification for runtime confirmation.
+- Updated: 2026-08-23 | Milestone: **M1 Build-Level PUBLISHED** | Last completed step: Docs — README + ARCHITECTURE + STATUS published
+- Health: GREEN — M1 build-level complete and now published to GitHub; awaiting user emulator verification to unlock M2.
 - Build: `.\gradlew.bat assembleDebug` → SUCCESS; `testDebugUnitTest` → SUCCESS (19/19); `assembleDebugAndroidTest` → SUCCESS. APK 507.0 MB.
 - Tests: JVM 19/19 green (Chunker 7, PromptBuilder 5, ModelLocator 7). Instrumented JniSmokeTest compiled, USER to run via `.\gradlew.bat connectedDebugAndroidTest`.
-- Blockers: none open (docs/BLOCKERS.md).
-- Evidence: docs/TEST_LOG.md §"Phase 3 Step 0", §"M1 Step 1"–"M1 Step 5", §"M1 Final Gates".
-- Next action: User runs MANUAL_VERIFY §B items 1–7 on emulator (install → cold launch → no-model state → model load → real-generation gate). After user confirmation: M2 kickoff (real MiniLM tokenizer + ONNX embeddings).
+- Blockers: none open (docs/BLOCKERS.md). M2 remains locked until MANUAL_VERIFY §B real-generation gate passes on emulator.
+- Evidence: docs/TEST_LOG.md §"Phase 3 Step 0", §"M1 Step 1"–"M1 Step 5", §"M1 Final Gates", §"DOCS".
+- Next action: User runs MANUAL_VERIFY §B items 1–7 on emulator. No code work until that gate passes.
 - Artifacts index:
+  - README.md — hero, status banner, ecosystem, Mermaid diagram, build/test/roadmap (2026-08-23)
+  - docs/ARCHITECTURE.md — NativeBridge.cpp deep dive, D4/D9 mechanisms, RAG pipeline (2026-08-23)
   - docs/CODEBASE_MAP.md — audited file tree, JNI contract, fake/broken inventory, build diagnosis (2026-08-23)
   - docs/RESEARCH_NOTES.md — sourced findings: decode loop, pooling, PR #9639, sqlite-vec, HF repo status (2026-08-23)
   - docs/DECISIONS.md — D1–D10 with alternatives (+D8 test-deps amendment in TEST_LOG) (2026-08-23)

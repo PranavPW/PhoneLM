@@ -607,3 +607,30 @@ accepted Step 2–5 carry-over. No out-of-scope changes.
 T1 PASS · T2 PASS · T3 PASS → **M1 functionally complete at the build level.**
 
 ---
+
+## 2026-08-23 — DOCS (portfolio-grade README + ARCHITECTURE)
+
+### T1 — README.md contains Mermaid diagram syntax
+```
+Test-Path README.md → True
+Select-String -Pattern "```mermaid" → line 28 ```mermaid
+```
+
+### T2 — scripts/fetch_model.ps1 referenced in README
+```
+Select-String -Pattern "fetch_model\.ps1" → lines 102, 105
+  .\scripts\fetch_model.ps1
+  .\scripts\fetch_model.ps1 -SourcePath C:\path\to\your\model.gguf
+```
+
+### T3 — git commit + push
+```
+git add . ; git commit -m "docs: add portfolio-grade README and architecture guide"
+[main <hash>] docs: add portfolio-grade README and architecture guide
+ 3 files changed, <lines> insertions(+)
+ create mode 100644 README.md
+  ...
+
+git push
+<paste below>
+```
