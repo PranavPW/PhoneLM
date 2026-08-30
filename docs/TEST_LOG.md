@@ -637,3 +637,40 @@ To https://github.com/PranavPW/PhoneLM.git
    5bf68e0..cf39032  main -> main
 ```
 T1 PASS · T2 PASS · T3 PASS → **DOCS published. M1 Build-Level PUBLISHED.**
+
+---
+
+## 2026-08-23 — DOCS correction (standalone Android app diagram)
+
+### T1 — README.md contains Mermaid diagram syntax
+```
+Test-Path README.md → True
+Select-String -Pattern "```mermaid" → line 28 ```mermaid
+```
+
+### T2 — scripts/fetch_model.ps1 referenced in README
+```
+Select-String -Pattern "fetch_model\.ps1" → lines 102, 105
+  .\scripts\fetch_model.ps1
+  .\scripts\fetch_model.ps1 -SourcePath C:\path\to\your\model.gguf
+```
+
+### T3 — git commit + push
+```
+git add README.md
+git commit -m "docs: focus README architecture diagram on standalone Android app"
+[main 3ae6855] docs: focus README architecture diagram on standalone Android app
+ 1 file changed, 6 insertions(+), 36 deletions(-)
+
+git push
+To https://github.com/PranavPW/PhoneLM.git
+   c8079fb..3ae6855  main -> main
+```
+T1 PASS · T2 PASS · T3 PASS → **README diagram corrected to standalone Android app layers; sentence added below diagram.**
+
+Diagram now shows ONLY:
+- Kotlin/Compose UI
+- LlamaEngine.kt (JNI)
+- NativeBridge.cpp <-> vendored llama.cpp
+- RAG Pipeline: PDFBox/MLKit -> Chunker -> ONNX MiniLM -> ObjectBox HNSW
+Followed by: "The application can resolve its required GGUF/ONNX models via an external manifest contract or local asset bundling."
