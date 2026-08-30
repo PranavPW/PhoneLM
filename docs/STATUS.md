@@ -1,0 +1,21 @@
+# PhoneLM STATUS
+- Updated: 2026-08-23 | Milestone: **M1 COMPLETE (build level)** | Last completed step: M1 Final Gates
+- Health: GREEN — assembleDebug green with/without GGUF; real decode loop compiled; 19 JVM tests green; instrumented smoke template compiles; awaiting user emulator verification for runtime confirmation.
+- Build: `.\gradlew.bat assembleDebug` → SUCCESS; `testDebugUnitTest` → SUCCESS (19/19); `assembleDebugAndroidTest` → SUCCESS. APK 507.0 MB.
+- Tests: JVM 19/19 green (Chunker 7, PromptBuilder 5, ModelLocator 7). Instrumented JniSmokeTest compiled, USER to run via `.\gradlew.bat connectedDebugAndroidTest`.
+- Blockers: none open (docs/BLOCKERS.md).
+- Evidence: docs/TEST_LOG.md §"Phase 3 Step 0", §"M1 Step 1"–"M1 Step 5", §"M1 Final Gates".
+- Next action: User runs MANUAL_VERIFY §B items 1–7 on emulator (install → cold launch → no-model state → model load → real-generation gate). After user confirmation: M2 kickoff (real MiniLM tokenizer + ONNX embeddings).
+- Artifacts index:
+  - docs/CODEBASE_MAP.md — audited file tree, JNI contract, fake/broken inventory, build diagnosis (2026-08-23)
+  - docs/RESEARCH_NOTES.md — sourced findings: decode loop, pooling, PR #9639, sqlite-vec, HF repo status (2026-08-23)
+  - docs/DECISIONS.md — D1–D10 with alternatives (+D8 test-deps amendment in TEST_LOG) (2026-08-23)
+  - docs/PLAN.md — M1–M5 milestones + Phase-2 self-review cuts (2026-08-23)
+  - docs/BLOCKERS.md — open/parked blockers (2026-08-23)
+  - docs/MANUAL_VERIFY.md — user-run emulator/device protocol incl. anti-fake gates (2026-08-23)
+  - docs/PROGRESS.md — per-step reflections + Step 5 Decode Plan, append-only (2026-08-23)
+  - docs/TEST_LOG.md — verbatim command evidence per step (2026-08-23)
+  - scripts/fetch_model.ps1 — GGUF fetcher (download or local copy), gitignored destination (2026-08-23)
+  - docs/STATUS.md — this dashboard; must never contradict PROGRESS.md (2026-08-23)
+  - docs/STATUS.md — this dashboard; must never contradict PROGRESS.md (2026-08-23)
+  - docs/STATUS.md — this dashboard; must never contradict PROGRESS.md (2026-08-23)

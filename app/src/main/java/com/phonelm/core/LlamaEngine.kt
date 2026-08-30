@@ -15,6 +15,7 @@ object LlamaEngine {
     }
 
     external fun loadModel(path: String): Boolean
+    external fun loadModelWithGpuLayers(path: String, nGpuLayers: Int): Boolean
     external fun unloadModel()
     external fun generateCompletion(prompt: String): String
     external fun getEmbeddings(text: String): FloatArray?
@@ -22,6 +23,11 @@ object LlamaEngine {
 
     suspend fun loadModelSafe(path: String): Boolean = withContext(Dispatchers.IO) {
         loadModel(path)
+    }
+
+    /** CPU-only by default (n_gpu_layers=0, DECISIONS.md D6). */
+    suspend fun loadModelSafe(path: String, nGpuLayers: Int): Boolean = withContext(Dispatchers.IO) {
+        loadModelWithGpuLayers(path, nGpuLayers)
     }
 
     suspend fun generate(prompt: String): Flow<String> = flow {

@@ -81,7 +81,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     // PDFBox-Android
-    implementation("com.tom_roush:pdfbox-android:2.0.27.0")
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     
     // ML Kit Text Recognition
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.0")
@@ -91,4 +91,9 @@ dependencies {
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // Test-only dependencies (DECISIONS.md D8 amendment: no runtime deps added)
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test:runner:1.5.2")
 }

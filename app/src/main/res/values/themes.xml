@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pure-Compose app: platform NoActionBar parent; dark window background
+         to match PhoneLMTheme.kt dark-by-default and avoid startup white flash. -->
+    <style name="Theme.PhoneLM" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF10101A</item>
+    </style>
+</resources>

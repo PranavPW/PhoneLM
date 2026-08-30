@@ -32,13 +32,31 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
-        val downloadDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "PhoneLM")
-        if (downloadDir.exists()) {
-            downloadDir.listFiles { file -> file.name.endsWith(".gguf") }?.let {
-                models.clear()
-                models.addAll(it)
+        // D4 mechanism: copy bundled asset GGUFs to filesDir once so the
+        // engine (which needs a real file path) can load them offline.
+        try {
+            val bundledDir = com.phonelm.core.ModelLocator.bundledCopyDir(context.filesDir)
+            if (!bundledDir.exists()) bundledDir.mkdirs()
+            context.assets.list(com.phonelm.core.ModelLocator.ASSETS_MODEL_DIR)?.forEach { name ->
+                val out = File(bundledDir, name)
+                if (!out.exists() || out.length() == 0L) {
+                    context.assets.open("${com.phonelm.core.ModelLocator.ASSETS_MODEL_DIR}/$name").use { input ->
+                        out.outputStream().use { input.copyTo(it) }
+                    }
+                }
             }
+        } catch (_: Exception) {
+            // No bundled models present — Downloads scan below still applies.
         }
+
+        val downloadDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "PhoneLM")
+        val candidates = buildList {
+            com.phonelm.core.ModelLocator.bundledCopyDir(context.filesDir).listFiles()?.let { addAll(it) }
+            downloadDir.listFiles()?.let { addAll(it) }
+        }
+        val resolved = com.phonelm.core.ModelLocator.resolveModel(candidates)
+        models.clear()
+        resolved?.let { models.add(it) }
     }
 
     Column(

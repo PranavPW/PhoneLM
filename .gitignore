@@ -20,3 +20,6 @@ app/src/main/cpp/llama.cpp/
 
 # Logs / temp
 *.log
+
+# ObjectBox generated schema metadata (build-time artifact)
+app/objectbox-models/

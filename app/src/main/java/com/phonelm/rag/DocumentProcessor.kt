@@ -37,9 +37,7 @@ class DocumentProcessor(private val context: Context) {
             }
             
             // Store in Vector DB
-            // We should ideally chunk this. For now, storing as one big chunk or simple split.
-            // MVP: Split by paragraphs or fixed size
-            val chunks = text.chunked(500) // Simple chunking
+            val chunks = com.phonelm.rag.Chunker.chunkText(text)
             chunks.forEachIndexed { index, chunk ->
                 vectorStore.addDocument(chunk, File(uri.path ?: "doc").name, index)
             }
@@ -71,7 +69,6 @@ class DocumentProcessor(private val context: Context) {
                 latch.countDown()
             }
             
-        latch.await()
         latch.await()
         
         if (resultText.isNotBlank()) {

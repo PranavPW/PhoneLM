@@ -1,9 +1,13 @@
 package com.phonelm.viewmodel
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.phonelm.core.LlamaEngine
-import com.phonelm.rag.VectorStore
+import com.phonelm.data.ObjectBox
+import com.phonelm.data.VectorStore
+import com.phonelm.rag.EmbeddingGenerator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,12 +27,6 @@ data class UiState(
     val currentModelName: String? = null,
     val error: String? = null
 )
-
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import com.phonelm.data.ObjectBox
-import com.phonelm.data.VectorStore
-import com.phonelm.rag.EmbeddingGenerator
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(UiState())
@@ -96,23 +94,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 // RAG Retrieval
                 val relevantDocs = vectorStore.searchSimilar(text, 3)
-                val contextBlock = if (relevantDocs.isNotEmpty()) {
-                    relevantDocs.joinToString("\n\n") { "Title: ${it.fileName}\nContent: ${it.text}" }
-                } else {
-                    ""
-                }
-                
-                val finalPrompt = if (contextBlock.isNotBlank()) {
-                     """
-                     Use the following context to answer the user's question.
-                     Context:
-                     $contextBlock
-                     
-                     Question: $text
-                     """.trimIndent()
-                } else {
-                    text
-                }
+                val finalPrompt = com.phonelm.rag.PromptBuilder.buildRagPrompt(
+                    question = text,
+                    contexts = relevantDocs.map {
+                        com.phonelm.rag.PromptBuilder.ContextDoc(it.fileName, it.text)
+                    }
+                )
 
                 // Generate
                 val response = LlamaEngine.generateCompletion(finalPrompt) // In real app, prompt template applied here

@@ -37,7 +37,7 @@ class VectorStore(private val embeddingGenerator: EmbeddingGenerator) {
         
         // ObjectBox Vector Search
         // Using find with nearest neighbor
-        return box.query(VectorEntity_.embedding.nearestNeighbor(queryEmbedding, topK))
+        return box.query(VectorEntity_.embedding.nearestNeighbors(queryEmbedding, topK))
             .build()
             .find()
     }

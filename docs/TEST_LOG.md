@@ -134,3 +134,476 @@ T1 PASS · T2 logged (baseline failure understood) · T3 gap recorded, fix sched
 Only gradle-wrapper.properties changed.
 
 ---
+
+## 2026-08-23 — M1 Step 2 (gradle.properties + git baseline + re-run)
+
+### Intent (declared before implementation)
+Unblock AndroidX gate via root gradle.properties; establish measurable git baseline
+(init + .gitignore + one baseline commit); re-run assembleDebug to expose next error
+layer. Verification: T1 file content, T2 git checks, T3 build tail, T4 vendored hash.
+
+### T1 — gradle.properties content
+```
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+org.gradle.caching=true
+org.gradle.parallel=true
+android.useAndroidX=true
+android.nonTransitiveRClass=true
+```
+(caching/parallel lines added later same day as user-directed build-time optimization,
+see "Timing" below; no jetifier, per DECISIONS.md D10.)
+
+### T2 — git baseline
+```
+git init                      → Initialized empty Git repository .../PhoneLM_v2/.git/
+git rev-parse --is-inside-work-tree → true
+Baseline commit: 388b729 "Baseline: pre-existing state + wrapper pinned to Gradle 8.6 + planning docs"
+  35 files changed, 2266 insertions(+)
+git status --porcelain after commit → clean at commit time
+```
+.gitignore content (verbatim):
+```
+# Gradle
+.gradle/
+build/
+
+# Android Studio / IDE
+.idea/
+*.iml
+local.properties
+.cxx/
+
+# Native build output
+app/.cxx/
+app/build/
+
+# Bundled GGUF model - NEVER commit (DECISIONS.md D4)
+app/src/main/assets/models/
+
+# Vendored llama.cpp - ignored for now, NOT a submodule (DECISIONS.md D9)
+app/src/main/cpp/llama.cpp/
+
+# Logs / temp
+*.log
+```
+Post-commit working tree shows only ` M gradle.properties` (the timing optimization).
+
+### T3 — assembleDebug after gradle.properties fix
+
+Result: BUILD FAILED — but the AAR-metadata AndroidX gate PASSED. New error layer:
+```
+Execution failed for task ':app:checkDebugAarMetadata'.
+* What went wrong:
+> Could not resolve all files for configuration ':app:debugRuntimeClasspath'.
+   > Could not find com.tom_roush:pdfbox-android:2.0.27.0.
+     Searched in the following locations: [google, mavenCentral]
+```
+Full log: %TEMP%\opencode\assemble_step2.log.
+Root cause verified externally:
+```
+https://repo1.maven.org/maven2/com/tom_roush/pdfbox-android/ → 404 Not Found
+https://repo1.maven.org/maven2/com/tom_roush/                → 404 Not Found
+https://repo1.maven.org/maven2/com/tom-roush/pdfbox-android/ → EXISTS, incl. 2.0.27.0 (2023-01-02)
+```
+⇒ app/build.gradle.kts:84 dependency coordinate typo: `com.tom_roush` should be
+`com.tom-roush`. Fix scheduled for step 3 (NOT fixed in step 2 scope).
+Also observed during step 2: res/values and res/drawable are EMPTY while
+AndroidManifest references @mipmap/ic_launcher, @style/Theme.PhoneLM,
+@xml/data_extraction_rules, @xml/backup_rules → resource-link failure expected
+after the dependency layer clears.
+
+### T4 — vendored llama.cpp provenance
+```
+git -C app/src/main/cpp/llama.cpp rev-parse HEAD
+→ bd2a93d4753c4f00443f561ee039220283016ee8
+git -C ... log -1 → "gguf-py : add requests to dependencies (#18629)" 2026-01-06
+```
+Recorded in docs/DECISIONS.md D9.
+
+### Timing optimization (user-directed)
+- Run 1 (baseline): 3m53s — one-time dependency downloads over network.
+- Run 2 (post-fix): 27s — warm daemon + configuration only.
+- Added `org.gradle.caching=true` + `org.gradle.parallel=true` to gradle.properties:
+  failed-config cycle now 3.4–4.2s (measured twice with Measure-Command).
+- Tool timeouts used: 30 min for full builds; no timeout risk remaining at current scale.
+- NDK/CMake path still never reached — real compile time unknown until step ≥4.
+
+### Step 2 verdict
+T1 PASS · T2 PASS · T3 fully logged (next-layer failure understood, fix scoped) ·
+T4 PASS. Files created this step: gradle.properties, .gitignore, docs/STATUS.md
+(+ git metadata + baseline commit).
+
+---
+
+## 2026-08-23 — M1 Step 3 (typo fix + import/latch fixes + proguard-rules.pro)
+
+### Intent (declared before implementation)
+Fix pdfbox coordinate typo, ChatViewModel conflicting import, duplicate latch.await();
+create minimal proguard-rules.pro; re-run assembleDebug with honest triage
+(in-scope fixes fixed, out-of-scope named only).
+
+### T1 — typo fix proof
+```
+Select-String -Path app\build.gradle.kts -Pattern "tom-roush|tom_roush"
+84: implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+```
+`com.tom-roush` present; zero occurrences of `tom_roush` remain.
+
+### T2 — import/latch diffs (verbatim git diff)
+ChatViewModel.kt — dropped import is `com.phonelm.rag.VectorStore`:
+```
+-import com.phonelm.rag.VectorStore
+```
+DocumentProcessor.kt:
+```
+         latch.await()
+-        latch.await()
+```
+latch.await() occurrence count after fix: 1.
+
+### T3 — app/proguard-rules.pro exists (True)
+Content: header comment documenting non-minified-release policy and M5 keep-rules
+plan (LlamaEngine JNI name lookup, ONNX/ObjectBox defaults). Full text in file.
+
+### T4 — assembleDebug result
+
+BUILD FAILED in 4m 16s at :app:processDebugResources.
+Full log: %TEMP%\opencode\assemble_step3.log. Layer progression vs step 2:
+- checkDebugAarMetadata PASSED (dependency resolution now works).
+- configureCMakeDebug[arm64-v8a] + buildCMakeDebug[arm64-v8a] RAN AND SUCCEEDED —
+  first proof the NDK/CMake/Vulkan toolchain works on this machine. Only
+  deprecation NOTES for llama_load_model_from_file / llama_new_context_with_model /
+  llama_free_model (expected; modernization already planned in PLAN.md M1 step 5).
+- Kotlin compile NOT reached (runs after resource processing).
+Verbatim failure:
+```
+Execution failed for task ':app:processDebugResources'.
+   > Android resource linking failed
+     ERROR: AndroidManifest.xml:10:5-42:19 AAPT: resource xml/data_extraction_rules not found.
+     ERROR: AndroidManifest.xml:10:5-42:19 AAPT: resource xml/backup_rules not found.
+     ERROR: AndroidManifest.xml:10:5-42:19 AAPT: resource mipmap/ic_launcher not found.
+     ERROR: AndroidManifest.xml:10:5-42:19 AAPT: resource mipmap/ic_launcher_round not found.
+     ERROR: AndroidManifest.xml:10:5-42:19 AAPT: resource style/Theme.PhoneLM not found.
+     ERROR: AndroidManifest.xml:21:9-29:20 AAPT: resource style/Theme.PhoneLM not found.
+BUILD FAILED in 4m 16s
+```
+
+### Out-of-scope error inventory (named for step 4, NOT fixed)
+All six AAPT errors are OUT of step-3 scope (missing res/values + res/xml +
+res/mipmap-* content):
+1. `res/xml/data_extraction_rules.xml` — missing; referenced AndroidManifest.xml:10
+2. `res/xml/backup_rules.xml` — missing; referenced AndroidManifest.xml:10
+3. `res/mipmap-anydpi/ic_launcher.xml` (+ round) — missing; referenced manifest icon attrs
+4. `res/values/themes.xml` defining `Theme.PhoneLM` — missing; referenced manifest:10,21
+(Also referenced by code but unverified until Kotlin runs: PhoneLMTheme.kt usage.)
+Kotlin compile layer still unexercised — will surface in step 4 after resources link.
+
+### T5 — layer proof (git status --porcelain)
+```
+ M app/build.gradle.kts
+ M app/src/main/java/com/phonelm/rag/DocumentProcessor.kt
+ M app/src/main/java/com/phonelm/viewmodel/ChatViewModel.kt
+?? app/proguard-rules.pro
+```
+(docs/* and gradle.properties modifications are carry-over from accepted steps 0–2,
+not new this step.)
+
+### Step 3 verdict
+T1 PASS · T2 PASS · T3 PASS · T4 fully logged with precise out-of-scope inventory ·
+T5 PASS.
+
+---
+
+## 2026-08-23 — M1 Step 4.0 (audit gap G-PLM-2 close)
+
+### Action
+Created docs/MANUAL_VERIFY.md from the supervisor-approved consolidated testing
+guide (build-level tests A/B1–B4; emulator/device checklist B1–B7 incl. real-
+generation gate and embedding-determinism gate; regression watchlist C).
+
+### Verification
+```
+Test-Path docs\MANUAL_VERIFY.md → True
+Get-ChildItem docs | Measure-Object -Line → (see below)
+```
+```
+PS C:\...\PhoneLM_v2> Test-Path docs\MANUAL_VERIFY.md
+True
+```
+MANUAL_VERIFY.md is now maintained per standing artifact rules; status log
+section added for user-run verification results.
+
+---
+
+## 2026-08-23 — M1 Step 4 (missing resources)
+
+### T1 — new resource file contents (all verbatim)
+
+**app/src/main/res/values/themes.xml**
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pure-Compose app: platform NoActionBar parent; dark window background
+         to match PhoneLMTheme.kt dark-by-default and avoid startup white flash. -->
+    <style name="Theme.PhoneLM" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF10101A</item>
+    </style>
+</resources>
+```
+
+**app/src/main/res/xml/backup_rules.xml**
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="file" path="phonelm_models/" />
+</full-backup-content>
+```
+
+**app/src/main/res/xml/data_extraction_rules.xml**
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="phonelm_models/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="phonelm_models/" />
+    </device-transfer>
+</data-extraction-rules>
+```
+
+**app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml** and **ic_launcher_round.xml**
+(identical content):
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+```
+
+**app/src/main/res/drawable/ic_launcher_foreground.xml**
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Simple chat-bubble glyph inside the 66dp adaptive-icon safe zone -->
+    <path
+        android:fillColor="#FF7C9CFF"
+        android:pathData="M34,38 h40 a6,6 0 0 1 6,6 v20 a6,6 0 0 1 -6,6 h-26 l-10,10 v-10 h-4 a6,6 0 0 1 -6,-6 v-20 a6,6 0 0 1 6,-6 z" />
+</vector>
+```
+
+**app/src/main/res/drawable/ic_launcher_background.xml**
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FF10101A"
+        android:pathData="M0,0 h108 v108 h-108 z" />
+</vector>
+```
+
+### T2 — assembleDebug result
+
+BUILD FAILED in 8s at :app:processDebugResources.
+Full log: %TEMP%\opencode\assemble_step4.log. Verbatim:
+```
+Execution failed for task ':app:processDebugResources'.
+   > Android resource linking failed
+     com.phonelm.app-main-57:/xml/accessibility_service_config.xml:7: error:
+       resource string/app_name (aka com.phonelm:string/app_name) not found.
+     error: failed linking file resources.
+BUILD FAILED in 8s
+```
+Layer analysis:
+- ALL SIX prior AAPT errors CLEARED (themes, backup/extraction rules, mipmaps all link).
+- One NEW pre-existing gap exposed (was hidden behind earlier failures):
+  `res/xml/accessibility_service_config.xml` line **2** (AAPT reports :7, the
+  element end) references `@string/app_name`; no `res/values/strings.xml` exists.
+- Kotlin compile layer NOT reached yet — still blocked by resource linking.
+
+### Step 5 Scoping Inventory (unforeseen, out-of-scope, NOT fixed)
+1. `app/src/main/res/values/strings.xml` MISSING entirely; needed to satisfy
+   `@string/app_name` referenced at res/xml/accessibility_service_config.xml:2.
+   Minimal fix: create strings.xml with `<string name="app_name">PhoneLM</string>`
+   (matches manifest android:label="PhoneLM").
+2. Kotlin compile errors — unknown until item 1 lands. Known candidates from
+   CODEBASE_MAP §3 remain unverified.
+
+### T3 — scope discipline proof (git status --porcelain)
+New this step (untracked resource dirs/files + MANUAL_VERIFY.md):
+```
+?? app/src/main/res/drawable/            (ic_launcher_foreground/background.xml)
+?? app/src/main/res/mipmap-anydpi-v26/   (ic_launcher.xml, ic_launcher_round.xml)
+?? app/src/main/res/values/              (themes.xml)
+?? app/src/main/res/xml/backup_rules.xml
+?? app/src/main/res/xml/data_extraction_rules.xml
+?? docs/MANUAL_VERIFY.md                 (Step 4.0 audit gap close)
+?? docs/STATUS.md                        (created Step 2 per supervisor requirement)
+```
+Modified files are carry-over from accepted Steps 2–3 only. NO source code
+touched in Step 4.
+
+### Step 4 verdict
+T1 PASS · T2 fully logged with triage (in-scope fixes needed: none; inventory
+above for Step 5) · T3 PASS.
+
+---
+
+## 2026-08-23 — M1 Step 5 (Kotlin unblock + real decode loop + fetch mechanism)
+
+### Phase 5.1 / T1 — strings.xml + first Kotlin exposure
+
+Created `app/src/main/res/values/strings.xml`:
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PhoneLM</string>
+</resources>
+```
+Run 1: processDebugResources PASSED → Kotlin compiled for the FIRST time.
+```
+e: ChatViewModel.kt:24:2 imports are only allowed in the beginning of file
+> Task :app:kaptGenerateStubsDebugKotlin FAILED
+```
+Triage: TRIVIAL (mid-file imports from fake-engine era) → fixed in-scope by
+merging the five stray imports into the header block (git diff on file).
+(One transient Gradle daemon crash during this phase, recovered on re-run;
+daemon heap stays at -Xmx2048m for now.)
+
+Run 2 exposed two more trivial errors, both fixed in-scope:
+```
+e: data/VectorStore.kt:40:50 Unresolved reference: nearestNeighbor
+e: ui/ChatScreen.kt:162:29 Unresolved reference: clickable
+```
+Fixes: (a) ObjectBox 4.1.0 API is `nearestNeighbors(float[], int)` PLURAL —
+verified via javap against objectbox-java-4.1.0.jar
+(`io.objectbox.Property.nearestNeighbors`); one-character rename.
+(b) added `import androidx.compose.foundation.clickable`.
+
+Run 3: **BUILD SUCCESSFUL in 1m 16s** — project compiles end-to-end for the
+first time ever.
+
+### Phase 5.2 / T2 — research checkpoint
+"Step 5 Decode Plan" (5 bullets) written to PROGRESS.md before any C++ change,
+based on RESEARCH_NOTES R1 + vendored examples/simple/simple.cpp.
+
+### Phase 5.3 / T3 — real decode loop
+
+NativeBridge.cpp rewritten: modern `llama_model_load_from_file`, additive JNI
+overload `loadModelWithGpuLayers(path, n_gpu_layers)` (existing signatures
+unchanged), two-pass tokenize, greedy sampler chain (deterministic M1),
+llama_decode → sample → EOG → token_to_piece loop capped at 256 tokens,
+KV cache cleared per generation, getEmbeddings de-fanged to deterministic zeros.
+One C++ iteration needed: forward declaration for the JNI overload
+(`error: use of undeclared identifier ...loadWithGpuLayers`) → fixed.
+Final evidence:
+```
+> Task :app:buildCMakeDebug[arm64-v8a]
+C/C++: ... note: 'llama_free_model' has been explicitly marked deprecated here
+BUILD SUCCESSFUL in 13s
+```
+Only remaining native warnings: intentional use of deprecated
+`llama_free_model` alias in unloadModel (modernization deferred; noted).
+
+### Phase 5.4 / T4 — scripts/fetch_model.ps1
+
+Script created (D4): downloads Qwen2.5-0.5B-Instruct Q4_K_M into
+app/src/main/assets/models/, supports `-SourcePath` local-copy mode, size
+sanity checks, idempotent re-runs. Executed live:
+```
+Downloading https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
+OK: ...\app\src\main\assets\models\qwen2.5-0.5b-instruct-q4_k_m.gguf (468.6 MB)
+```
+
+### Post-phase gates
+- assembleDebug WITH GGUF present: BUILD SUCCESSFUL in 1m 32s.
+- APK: app-debug.apk = 507.0 MB (= ~38 MB app + 468.6 MB asset; within
+  MANUAL_VERIFY watchlist bound).
+- gitignore blocks assets/models/ (`git status --porcelain` shows NO entry under
+  app/src/main/assets/models/). Added `app/objectbox-models/` (ObjectBox build
+  metadata) to .gitignore to keep tree clean.
+
+### T5 — scope proof (git status --porcelain, code files only)
+```
+M app/src/main/cpp/NativeBridge.cpp          (Phase 5.3)
+M app/src/main/java/com/phonelm/core/LlamaEngine.kt   (additive overload)
+M app/src/main/java/com/phonelm/viewmodel/ChatViewModel.kt  (import placement)
+M app/src/main/java/com/phonelm/ui/ChatScreen.kt     (clickable import)
+M app/src/main/java/com/phonelm/data/VectorStore.kt  (nearestNeighbors rename)
+A app/src/main/res/values/strings.xml        (mechanical unblocker, approved)
+A scripts/fetch_model.ps1                    (Phase 5.4)
+M .gitignore                                 (objectbox-models line)
+?? app/src/main/assets/models/*.gguf         (IGNORED - never committed)
+```
+All within declared Step 5 scope.
+
+### Step 5 verdict
+PASS CRITERIA MET: CMake builds with the REAL decode loop; Kotlin compiles clean;
+fetch mechanism functional and proven; nothing fake left in the generation path
+except the parked JNI getEmbeddings stub (documented, unused).
+
+---
+
+## 2026-08-23 — M1 Final Gates (JVM unit tests + instrumented template)
+
+### Scope
+Pure-JVM tests for chunking / prompt assembly / model-path resolution;
+instrumented JNI smoke-test template for user's emulator run.
+D8 amendment (logged): `testImplementation junit:4.13.2`,
+`androidTestImplementation androidx.test.ext:junit:1.1.5`, `androidx.test:runner:1.5.2`
+— test-scope only, zero runtime dependencies added.
+
+### New production code extracted for testability (pure Kotlin)
+- rag/PromptBuilder.kt — RAG prompt assembly (was inline in ChatViewModel).
+- rag/Chunker.kt — paragraph-aware chunking w/ hard wrap (replaces blind
+  String.chunked(500)); wired into DocumentProcessor.kt.
+- core/ModelLocator.kt — deterministic GGUF resolution (bundled copy > Downloads,
+  largest wins); wired into HomeScreen LaunchedEffect which now ALSO copies
+  bundled asset GGUFs to filesDir once (completes the D4 runtime mechanism).
+
+### T1 — .\gradlew.bat testDebugUnitTest
+
+First run: 18 tests, 1 FAILED — `ChunkerTest > content is preserved in order`.
+Root cause: BAD ASSERTION (expected lossless rejoin of hard-wrapped chunks,
+contradicting the documented hard-wrap contract). Test fixed to assert the real
+contract + added char-count-preservation test.
+Final run:
+```
+> Task :app:testDebugUnitTest
+BUILD SUCCESSFUL in 7s
+```
+19 tests total across ChunkerTest(7), PromptBuilderTest(5), ModelLocatorTest(7):
+all green. HTML report at app/build/reports/tests/testDebugUnitTest/.
+
+### T2 — instrumented template compiles
+
+app/src/androidTest/java/com/phonelm/JniSmokeTest.kt:
+- jniLoad_generate_unload_realOutput: copies bundled asset GGUF → filesDir,
+  loadModel → generateCompletion → asserts NOT placeholder / not blank /
+  no "Error:" prefix → unloadModel. Uses Assume to SKIP (not fail) if no GGUF.
+- generate_withoutModel_returnsErrorNotCrash: unload-first safety gate.
+```
+.\gradlew.bat assembleDebugAndroidTest
+> Task :app:assembleDebugAndroidTest
+BUILD SUCCESSFUL in 16s
+```
+
+### T3 — scope proof (git status --porcelain)
+New this step: app/src/test/, app/src/androidTest/, ModelLocator.kt, Chunker.kt,
+PromptBuilder.kt (+ wiring diffs in DocumentProcessor/ChatViewModel/HomeScreen),
+test deps in app/build.gradle.kts. All other modified/untracked entries are
+accepted Step 2–5 carry-over. No out-of-scope changes.
+
+### M1 Final Gates verdict
+T1 PASS · T2 PASS · T3 PASS → **M1 functionally complete at the build level.**
+
+---
