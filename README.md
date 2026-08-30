@@ -26,43 +26,13 @@ The project shares the **local-first thesis with [OpenTrae](https://github.com/a
 ### Layer diagram
 
 ```mermaid
-graph LR
-    subgraph Android[Kotlin / Compose UI]
-        Home[HomeScreen]
-        Chat[ChatScreen]
-        VM[ChatViewModel]
-    end
-
-    subgraph Bridge[JNI Boundary]
-        Engine[LlamaEngine.kt<br/>external fun]
-        Native[NativeBridge.cpp<br/>JNI impl]
-    end
-
-    subgraph Llama[vendored llama.cpp]
-        Model[llama_model]
-        Context[llama_context]
-        Sampler[Sampler Chain<br/>greedy]
-    end
-
-    subgraph RAG[On-Device RAG — M2]
-        PDF[PDFBox / MLKit OCR]
-        Chunker[Chunker]
-        ONNX[ONNX Runtime<br/>all-MiniLM-L6-v2<br/>384-dim]
-        Store[(ObjectBox HNSW<br/>VectorEntity)]
-    end
-
-    Home --> VM
-    Chat --> VM
-    VM --> Engine
-    Engine <--> Native
-    Native --> Model
-    Native --> Context
-    Native --> Sampler
-
-    VM --> RAG
-    PDF --> Chunker --> ONNX --> Store
-    Store --> VM
+graph TD
+    UI["Kotlin/Compose UI"] --> Bridge["LlamaEngine.kt (JNI)"] --> Native["NativeBridge.cpp"] <--> Llama["vendored llama.cpp"]
+    PDF["PDFBox/MLKit"] --> Chunker["Chunker"] --> ONNX["ONNX MiniLM"] --> HNSW["ObjectBox HNSW"]
+    HNSW -.-> UI
 ```
+
+The application can resolve its required GGUF/ONNX models via an external manifest contract or local asset bundling.
 
 ### How the layers connect
 
