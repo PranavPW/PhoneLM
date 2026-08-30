@@ -224,3 +224,11 @@ docs/MANUAL_VERIFY.md §B remain HUMAN-ONLY and were NOT claimed:
 No emulator was launched; no runtime results are asserted.
 
 ## Push evidence
+
+Commit: `bdc8f78` — "test: clean-room validation round + 9 regression locks" (11 files, 646 insertions)
+Push:
+```
+To https://github.com/PranavPW/PhoneLM.git
+   9744559..bdc8f78  main -> main
+```
+Follow-up commit for this push-evidence section: (next hash, see git log)
